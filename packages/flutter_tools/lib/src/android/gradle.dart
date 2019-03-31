@@ -317,6 +317,60 @@ void _exitIfNoAndroidSdk() {
   }
 }
 
+Future<void> buildPluginAAR({
+  @required FlutterProject plugin,
+  @required BuildInfo buildInfo,
+}) async {
+  assert(plugin != null);
+  assert(plugin.manifest != null);
+  assert(plugin.manifest.isPlugin);
+  final Directory pluginDir = plugin.directory.childDirectory('android');
+  injectGradleWrapper(pluginDir);
+  writeLocalProperties(pluginDir.childFile('local.properties'));
+
+  String assembleTask;
+  switch(buildInfo.mode) {
+    case BuildMode.debug:
+      assembleTask = 'assembleDebug';
+      break;
+    case BuildMode.dynamicProfile:
+    case BuildMode.dynamicRelease:
+    case BuildMode.profile:
+    case BuildMode.release:
+      assembleTask = 'assembleRelease';
+      break;
+  }
+  final Status status = logger.startProgress(
+    'Running \'gradlew $assembleTask\' for $pluginDir...',
+    timeout: timeoutConfiguration.slowOperation,
+  );
+  final String initScriptPath = fs.path.join(Cache.flutterRoot, 'packages', 'flutter_tools', 'gradle', 'plugins_init.gradle');
+  final List<String> command =  <String>[
+    _locateGradlewExecutable(pluginDir),
+    '--init-script',
+    initScriptPath,
+  ];
+  if (logger.isVerbose) {
+    command.add('-Pverbose=true');
+  } else {
+    command.add('-q');
+  }
+  if (artifacts is LocalEngineArtifacts) {
+    final LocalEngineArtifacts localEngineArtifacts = artifacts;
+    printTrace('Using local engine: ${localEngineArtifacts.engineOutPath}');
+    command.add('-PlocalEngineOut=${localEngineArtifacts.engineOutPath}');
+  }
+  assert(buildInfo.trackWidgetCreation != null);
+  command.add('-Ptrack-widget-creation=${buildInfo.trackWidgetCreation}');
+  command.add(assembleTask);
+
+  final int exitCode = await runCommandAndStreamOutput(command, workingDirectory: pluginDir.path);
+  status.stop();
+
+  if (exitCode != 0)
+    throwToolExit('Failed to build ${plugin.manifest.androidPackage}: $exitCode', exitCode: exitCode);
+}
+
 Future<void> buildGradleProject({
   @required FlutterProject project,
   @required BuildInfo buildInfo,

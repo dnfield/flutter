@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import '../runner/flutter_command.dart';
+import 'build_aar.dart';
 import 'build_aot.dart';
 import 'build_apk.dart';
 import 'build_appbundle.dart';
@@ -15,6 +16,7 @@ import 'build_web.dart';
 
 class BuildCommand extends FlutterCommand {
   BuildCommand({bool verboseHelp = false}) {
+    addSubcommand(BuildAarCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildApkCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildAppBundleCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildAotCommand());
