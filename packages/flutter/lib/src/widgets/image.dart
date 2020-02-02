@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/src/widgets/widget_tree_image_cache.dart';
 
 import 'basic.dart';
 import 'binding.dart';
@@ -949,6 +950,8 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
   int _frameNumber;
   bool _wasSynchronouslyLoaded;
   DisposableBuildContext<State<Image>> _scrollAwareContext;
+  WidgetTreeImageProvider _provider;
+  ImageProvider _lastImageProvider;
 
   @override
   void initState() {
@@ -968,6 +971,7 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
 
   @override
   void didChangeDependencies() {
+    _updateImageProvider();
     _updateInvertColors();
     _resolveImage();
 
@@ -987,8 +991,10 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
       _imageStream.removeListener(_getListener(oldWidget.loadingBuilder));
       _imageStream.addListener(_getListener());
     }
-    if (widget.image != oldWidget.image)
+    if (widget.image != oldWidget.image) {
+      _updateImageProvider();
       _resolveImage();
+    }
   }
 
   @override
@@ -1005,18 +1011,26 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
     super.reassemble();
   }
 
+  void _updateImageProvider() {
+    if (widget.image != _lastImageProvider) {
+      _lastImageProvider = widget.image;
+      _provider = WidgetTreeImageProvider<dynamic>(
+        imageProvider: ScrollAwareImageProvider<dynamic>(
+          context: _scrollAwareContext,
+          imageProvider: widget.image,
+        ),
+      );
+    }
+  }
+
   void _updateInvertColors() {
     _invertColors = MediaQuery.of(context, nullOk: true)?.invertColors
         ?? SemanticsBinding.instance.accessibilityFeatures.invertColors;
   }
 
   void _resolveImage() {
-    final ScrollAwareImageProvider provider = ScrollAwareImageProvider<dynamic>(
-      context: _scrollAwareContext,
-      imageProvider: widget.image,
-    );
     final ImageStream newStream =
-      provider.resolve(createLocalImageConfiguration(
+      _provider.resolve(createLocalImageConfiguration(
         context,
         size: widget.width != null && widget.height != null ? Size(widget.width, widget.height) : null,
       ));
@@ -1055,8 +1069,9 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
     if (_imageStream?.key == newStream?.key)
       return;
 
-    if (_isListeningToStream)
+    if (_isListeningToStream) {
       _imageStream.removeListener(_getListener());
+    }
 
     if (!widget.gaplessPlayback)
       setState(() { _imageInfo = null; });

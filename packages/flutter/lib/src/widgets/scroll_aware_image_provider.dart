@@ -76,6 +76,7 @@ class ScrollAwareImageProvider<T> extends ImageProvider<T> {
   ) {
     // Something managed to complete the stream. Nothing left to do.
     if (stream.completer != null) {
+      imageProvider.resolveStreamForKey(configuration, stream, key, handleError);
       return;
     }
     // Something else got this image into the cache. Return it.

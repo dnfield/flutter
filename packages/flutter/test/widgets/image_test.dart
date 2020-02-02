@@ -316,7 +316,7 @@ void main() {
     final TestImageProvider imageProvider = TestImageProvider();
     await tester.pumpWidget(Image(image: imageProvider, excludeFromSemantics: true));
     final State<Image> image = tester.state/*State<Image>*/(find.byType(Image));
-    expect(image.toString(), equalsIgnoringHashCodes('_ImageState#00000(stream: ImageStream#00000(OneFrameImageStreamCompleter#00000, unresolved, 2 listeners), pixels: null, loadingProgress: null, frameNumber: null, wasSynchronouslyLoaded: false)'));
+    expect(image.toString(), equalsIgnoringHashCodes('_ImageState#00000(stream: ImageStream#00000(OneFrameImageStreamCompleter#00000, unresolved, 3 listeners), pixels: null, loadingProgress: null, frameNumber: null, wasSynchronouslyLoaded: false)'));
     imageProvider.complete();
     await tester.pump();
     expect(image.toString(), equalsIgnoringHashCodes('_ImageState#00000(stream: ImageStream#00000(OneFrameImageStreamCompleter#00000, [100×100] @ 1.0x, 1 listener), pixels: [100×100] @ 1.0x, loadingProgress: null, frameNumber: 0, wasSynchronouslyLoaded: false)'));
@@ -690,7 +690,7 @@ void main() {
         child: image,
       ),
     );
-    expect(imageStreamCompleter.listeners.length, 2);
+    expect(imageStreamCompleter.listeners.length, 3);
     await tester.pumpWidget(
       TickerMode(
         enabled: false,
@@ -707,21 +707,21 @@ void main() {
     final TestImageProvider imageProvider2 = TestImageProvider();
 
     await tester.pumpWidget(
-        Container(
-            key: key,
-            child: Image(
-                excludeFromSemantics: true,
-                image: imageProvider1,
-            ),
+      Container(
+        key: key,
+        child: Image(
+          excludeFromSemantics: true,
+          image: imageProvider1,
         ),
-        null,
-        EnginePhase.layout,
+      ),
+      null,
+      EnginePhase.layout,
     );
     RenderImage renderImage = key.currentContext.findRenderObject() as RenderImage;
     expect(renderImage.image, isNull);
-
     imageProvider1.complete();
     imageProvider2.complete();
+
     await tester.idle(); // resolve the future from the image provider
     await tester.pump(null, EnginePhase.layout);
 
@@ -731,15 +731,15 @@ void main() {
     final ui.Image oldImage = renderImage.image;
 
     await tester.pumpWidget(
-        Container(
-            key: key,
-            child: Image(
-              excludeFromSemantics: true,
-              image: imageProvider2,
-            ),
+      Container(
+        key: key,
+        child: Image(
+          excludeFromSemantics: true,
+          image: imageProvider2,
         ),
-        null,
-        EnginePhase.layout,
+      ),
+      null,
+      EnginePhase.layout,
     );
 
     renderImage = key.currentContext.findRenderObject() as RenderImage;
@@ -1223,6 +1223,56 @@ void main() {
     expect(imageProviders.skip(309 - 15).every(loadCalled), true);
     expect(imageProviders.take(309 - 15).every(loadNotCalled), true);
   });
+
+  testWidgets('Same image provider in multiple parts of the tree, no cache room left', (WidgetTester tester) async {
+    final int originalSize = imageCache.maximumSize;
+    imageCache.maximumSize = 0;
+
+    final ui.Image image = await tester.runAsync(createTestImage);
+    final TestImageProvider provider1 = TestImageProvider();
+    final TestImageProvider provider2 = TestImageProvider();
+
+    expect(provider1.loadCallCount, 0);
+    expect(provider2.loadCallCount, 0);
+    // debugDumpWidgetImageCache();
+
+    await tester.pumpWidget(Column(
+      children: <Widget>[
+        Image(image: provider1),
+        Image(image: provider2),
+        Image(image: provider1),
+        Image(image: provider1),
+        Image(image: provider2),
+      ],
+    ));
+
+    expect(provider1.loadCallCount, 1);
+    expect(provider2.loadCallCount, 1);
+
+    // debugDumpWidgetImageCache();
+
+    provider1.complete(image);
+
+    await tester.idle();
+
+    // debugDumpWidgetImageCache();
+
+    provider2.complete(image);
+    await tester.idle();
+
+    // debugDumpWidgetImageCache();
+
+    await tester.pumpWidget(Image(image: provider2));
+    await tester.idle();
+    // debugDumpWidgetImageCache();
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.idle();
+    expect(provider1.loadCallCount, 1);
+    expect(provider2.loadCallCount, 1);
+    // debugDumpWidgetImageCache();
+    imageCache.maximumSize = originalSize;
+  });
 }
 
 class TestImageProvider extends ImageProvider<TestImageProvider> {
@@ -1235,8 +1285,9 @@ class TestImageProvider extends ImageProvider<TestImageProvider> {
   ImageStreamCompleter _streamCompleter;
   ImageConfiguration _lastResolvedConfiguration;
 
-  bool get loadCalled => _loadCalled;
-  bool _loadCalled = false;
+  bool get loadCalled => _loadCallCount > 0;
+  int get loadCallCount => _loadCallCount;
+  int _loadCallCount = 0;
 
   @override
   Future<TestImageProvider> obtainKey(ImageConfiguration configuration) {
@@ -1251,12 +1302,12 @@ class TestImageProvider extends ImageProvider<TestImageProvider> {
 
   @override
   ImageStreamCompleter load(TestImageProvider key, DecoderCallback decode) {
-    _loadCalled = true;
+    _loadCallCount += 1;
     return _streamCompleter;
   }
 
-  void complete() {
-    _completer.complete(ImageInfo(image: TestImage()));
+  void complete([ui.Image image]) {
+    _completer.complete(ImageInfo(image: image ?? TestImage()));
   }
 
   void fail(dynamic exception, StackTrace stackTrace) {
