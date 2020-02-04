@@ -8,7 +8,6 @@ import 'package:flutter/painting.dart';
 
 import 'framework.dart';
 
-
 void debugDumpWidgetImageCache() {
   if (_cache._cache.isEmpty) {
     debugPrint('No images in widget tree cache.');
@@ -68,7 +67,7 @@ class _CacheImage {
 class _WidgetTreeImageCache {
   _WidgetTreeImageCache();
 
-  final Map<_Key, _CacheImage> _cache = <_Key, _CacheImage>{};
+  final Map<Object, _CacheImage> _cache = <Object, _CacheImage>{};
 
   bool containsKey(Object key) => _cache[key] != null;
 
@@ -94,7 +93,7 @@ class _WidgetTreeImageCache {
     );
   }
 
-  bool add(_Key key, ImageStream stream) {
+  bool add(Object key, ImageStream stream) {
     assert(key != null);
     assert(stream != null);
     bool createdCacheImage = false;
@@ -120,7 +119,7 @@ class WidgetTreeImageProvider<T> extends ImageProvider<T> {
   /// The wrapped image provider to delegate [obtainKey] and [load] to.
   final ImageProvider<T> imageProvider;
 
-  _Key _obtainedKey;
+  T _obtainedKey;
   ImageStream _stream;
 
   /// Called when the [State] that created this provider does not want to
@@ -150,7 +149,7 @@ class WidgetTreeImageProvider<T> extends ImageProvider<T> {
     ImageErrorListener handleError,
   ) {
     assert(identical(_stream, stream));
-    _obtainedKey = _Key(key, configuration);
+    _obtainedKey = key; //_Key(key, configuration);
     final bool added = _cache.add(_obtainedKey, stream);
     if (stream.completer != null || added) {
       imageProvider.resolveStreamForKey(configuration, stream, key, handleError);
@@ -163,24 +162,4 @@ class WidgetTreeImageProvider<T> extends ImageProvider<T> {
 
   @override
   Future<T> obtainKey(ImageConfiguration configuration) => imageProvider.obtainKey(configuration);
-}
-
-class _Key {
-  const _Key(this.key, this.configuration);
-
-  final Object key;
-  final ImageConfiguration configuration;
-
-  @override
-  int get hashCode => hashValues(key, configuration);
-
-  @override
-  bool operator== (Object other) {
-    return other is _Key
-        && other.key == key
-        && other.configuration == configuration;
-  }
-
-  @override
-  String toString() => '_Key($key, $configuration)';
 }
