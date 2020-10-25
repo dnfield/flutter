@@ -117,7 +117,7 @@ class ImageInfo {
   /// Once this method has been called, the object should not be used anymore,
   /// and no clones of it or the image it contains can be made.
   void dispose() {
-    assert((image.debugGetOpenHandleStackTraces()?.length ?? 1) > 0);
+    assert(!image.debugDisposed);
     image.dispose();
   }
 
