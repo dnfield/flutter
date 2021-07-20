@@ -13,8 +13,10 @@ import 'package:flutter/semantics.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 import 'binding.dart';
+import 'box.dart';
 import 'debug.dart';
 import 'layer.dart';
+import 'viewport.dart';
 
 export 'package:flutter/foundation.dart' show FlutterError, InformationCollector, DiagnosticsNode, ErrorSummary, ErrorDescription, ErrorHint, DiagnosticsProperty, StringProperty, DoubleProperty, EnumProperty, FlagProperty, IntProperty, DiagnosticPropertiesBuilder;
 export 'package:flutter/gestures.dart' show HitTestEntry, HitTestResult;
@@ -181,6 +183,11 @@ class PaintingContext extends ClipContext {
       debugOnProfilePaint?.call(child);
       return true;
     }());
+
+    final RenderAbstractViewport? viewport = RenderAbstractViewport.of(child.parent as RenderObject?);
+    if (viewport != null && !viewport.isObjectVisible(child, offset)) {
+      return;
+    }
 
     if (child.isRepaintBoundary) {
       stopRecordingIfNeeded();
@@ -1531,6 +1538,11 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     return _constraints!;
   }
   Constraints? _constraints;
+
+  bool paintsWithinConstraints(covariant Constraints viewportConstraints, Offset offset) {
+    assert(_constraints != null);
+    return true;
+  }
 
   /// Verify that the object's constraints are being met. Override
   /// this function in a subclass to verify that your state matches

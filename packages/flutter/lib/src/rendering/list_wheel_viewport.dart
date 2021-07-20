@@ -186,6 +186,8 @@ class RenderListWheelViewport
     addAll(children);
   }
 
+  bool isObjectVisible(RenderObject object, Offset offset) => true;
+
   /// An arbitrary but aesthetically reasonable default value for [diameterRatio].
   static const double defaultDiameterRatio = 2.0;
 

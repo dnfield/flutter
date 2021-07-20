@@ -48,6 +48,8 @@ abstract class RenderAbstractViewport extends RenderObject {
     return null;
   }
 
+  bool isObjectVisible(RenderObject object, Offset offset);
+
   /// Returns the offset that would be needed to reveal the `target`
   /// [RenderObject].
   ///
@@ -192,6 +194,16 @@ abstract class RenderViewportBase<ParentDataClass extends ContainerParentDataMix
        _cacheExtent = cacheExtent ?? RenderAbstractViewport.defaultCacheExtent,
        _cacheExtentStyle = cacheExtentStyle,
        _clipBehavior = clipBehavior;
+
+  @override
+  bool isObjectVisible(RenderObject object, Offset offset) {
+    assert(_calculatedCacheExtent != null);
+    final double cache = _calculatedCacheExtent!;
+    if (constraints.maxHeight + cache < offset.dy || constraints.maxWidth + cache < offset.dx) {
+      return false;
+    }
+    return object.paintsWithinConstraints(constraints, offset.translate(cache, cache));
+  }
 
   /// Report the semantics of this node, for example for accessibility purposes.
   ///

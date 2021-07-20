@@ -2162,6 +2162,17 @@ abstract class RenderBox extends RenderObject {
   BoxConstraints get constraints => super.constraints as BoxConstraints;
 
   @override
+  bool paintsWithinConstraints(BoxConstraints viewportConstraints, Offset offset) {
+    assert(hasSize);
+    assert(constraints != null);
+
+    if (size.width + offset.dx >= 0 && size.height + offset.dy >= 0) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
   void debugAssertDoesMeetConstraints() {
     assert(constraints != null);
     assert(() {

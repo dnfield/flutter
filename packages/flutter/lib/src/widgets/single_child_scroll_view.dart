@@ -415,6 +415,14 @@ class _RenderSingleChildViewport extends RenderBox with RenderObjectWithChildMix
     this.child = child;
   }
 
+  bool isObjectVisible(RenderObject object, Offset offset) {
+    // TODO: what if the child paints negative to offset?
+    if (constraints.maxHeight + cacheExtent < offset.dy || constraints.maxWidth + cacheExtent < offset.dx) {
+      return false;
+    }
+    return object.paintsWithinConstraints(constraints, offset.translate(cacheExtent, cacheExtent));
+  }
+
   AxisDirection get axisDirection => _axisDirection;
   AxisDirection _axisDirection;
   set axisDirection(AxisDirection value) {

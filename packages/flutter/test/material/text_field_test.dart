@@ -6550,6 +6550,7 @@ void main() {
     double? maxOffset;
 
     scrollController.addListener(() {
+      print(StackTrace.current);
       final double offset = scrollController.offset;
       minOffset = math.min(minOffset ?? offset, offset);
       maxOffset = math.max(maxOffset ?? offset, offset);
